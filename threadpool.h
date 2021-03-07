@@ -21,7 +21,8 @@
  */
 class Threadpool {
 public:
-    Threadpool(int numThreads) :
+    Threadpool(int maxThreads) :
+        maxThreads(maxThreads),
         running(true)
     {
         dispatcher = std::thread([this]() {
@@ -50,6 +51,10 @@ public:
                     debug("Checking worker idle q (size: %d)\n", this->workersQ.size());
                     std::unique_lock<std::mutex> lock2(this->mutexIdleQ);
                     while (this->workersQ.empty()) {
+                        if (this->workers.size() < this->maxThreads) {
+                            this->newWorker();
+                            break;
+                        }
                         this->cvIdleQ.wait(lock2); 
                     }
                     this->workersQ.front()->submit(f);
@@ -59,18 +64,6 @@ public:
             }
             debug("Dispatcher thread terminated\n");
         });
-        for (int i = 0; i < numThreads; i++) {
-            int id = i;
-            Worker *worker = new Worker(i, [this, id]() {
-                debug("Worker (%d) is back to idle pool\n", id);
-                std::unique_lock<std::mutex> lock(this->mutexIdleQ);
-                this->workersQ.push_back(workers[id]);
-                this->cvIdleQ.notify_all();
-            });
-            workers.push_back(worker);
-            workersQ.push_back(worker);
-            threads.push_back(std::thread(std::ref(*worker)));
-        }
     }
 
     ~Threadpool()
@@ -164,6 +157,21 @@ private:
         std::condition_variable cv;
     };
 
+    void newWorker()
+    {
+        int id = workers.size();
+        Worker *worker = new Worker(id, [this, id]() {
+            debug("Worker (%d) is back to idle pool\n", id);
+            std::unique_lock<std::mutex> lock(this->mutexIdleQ);
+            this->workersQ.push_back(workers[id]);
+            this->cvIdleQ.notify_all();
+        });
+        workers.push_back(worker);
+        workersQ.push_back(worker);
+        threads.push_back(std::thread(std::ref(*worker)));
+    }
+
+    unsigned int maxThreads;
     std::atomic<bool> running;
     std::thread dispatcher;
     std::vector<std::thread> threads;
