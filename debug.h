@@ -29,7 +29,7 @@ int debug(const char *format, ...) {
     time_t now = time(0);
     strftime (time_buf, 9, "%H:%M:%S", localtime (&now));
 #if __linux
-    snprintf(buffer, 1024, "[%s] [%d] %s", time_buf, syscall(__NR_gettid), format);
+    snprintf(buffer, 1024, "[%s] [%ld] %s", time_buf, syscall(__NR_gettid), format);
 #elif defined(_WIN32) || defined(_WIN64)
     snprintf(buffer, 1024, "[%s] [%lu] %s", time_buf, GetCurrentThreadId(), format);
 #endif
