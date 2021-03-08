@@ -29,9 +29,9 @@
  */
 int debug(const char *format, ...) {
     char buffer[MAX_DEBUG_BUFFER];
-    char time_buf[9];
 
 #if defined (__unix__)
+    char time_buf[9];
     long ms;
     time_t s;
     struct timespec spec;
@@ -44,10 +44,15 @@ int debug(const char *format, ...) {
     snprintf(buffer, MAX_DEBUG_BUFFER, "[%s.%03ld] [%ld] %s", time_buf, ms, syscall(__NR_gettid),
             format);
 #elif defined(_WIN32) || defined(_WIN64)
-    time_t now = time(0);
-    strftime(time_buf, 9, "%H:%M:%S", localtime(&s))
+    SYSTEMTIME time;
+    GetSystemTime(&time);
+
+    char time_buf[13];
+    snprintf(time_buf, 13, "%02d:%02d:%02d.%03d", time.wHour, time.wMinute, time.wSecond,
+            time.wMilliseconds);
     snprintf(buffer, MAX_DEBUG_BUFFER, "[%s] [%lu] %s", time_buf, GetCurrentThreadId(), format);
 #else
+    char time_buf[9];
     time_t now = time(0);
     strftime(time_buf, 9, "%H:%M:%S", localtime(&s))
     snprintf(buffer, MAX_DEBUG_BUFFER, "[%s] %s", time_buf, format);
